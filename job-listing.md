@@ -9,6 +9,7 @@ Gemfile
 +  gem 'simple_form'
 +  gem 'font-awesome-rails'
 +  gem 'carrierwave'
++  gem 'jquery-rails'
 
 
    group :development, :test do
@@ -145,8 +146,8 @@ end
 ```
 app/assets/javascripts/application.js
 ... (一堆注解)
-  //= require jquery
-  //= require jquery_ujs
++  //= require jquery
++  //= require jquery_ujs
   //= require turbolinks
 + //= require bootstrap/alert
 + //= require bootstrap/dropdown
@@ -181,4 +182,5 @@ module FlashesHelper
   def user_facing_flashes
     flash.to_hash.slice "alert", "notice","warning"
   end
+end
 ```
