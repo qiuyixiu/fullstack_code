@@ -117,6 +117,7 @@ app/views/jobs/show.html.erb
 
 ```
 app/views/jobs/index.html.erb
+
 <table class="table table-bordered">
   <% @jobs.each do |job| %>
   <tr>

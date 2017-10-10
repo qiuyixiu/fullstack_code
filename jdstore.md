@@ -9,6 +9,7 @@ Gemfile
 +  gem 'simple_form'
 +  gem 'font-awesome-rails'
 +  gem 'carrierwave'
++  gem 'mini_magick'
 +  gem 'jquery-rails'
 
 
@@ -25,6 +26,8 @@ Gemfile
 `rails generate simple_form:install --bootstrap`
 
 `rails g uploader attachment`
+
+`rails g uploader image`
 
 `mv app/assets/stylesheets/application.css app/assets/stylesheets/application.scss
 `
@@ -43,6 +46,17 @@ app/assets/stylesheets/application.scss
 + @import "font-awesome";
 
 ```
+
+```
+.gitignore
+
+...(略)
++ config/database.yml
++ public/uploads
+```
+
+
+
 + 新增navbar、footer
 
 
