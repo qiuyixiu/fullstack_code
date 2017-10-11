@@ -463,6 +463,8 @@ end
 
 `rails g controller cart_items`
 
+`rails g controller orders`
+
 ```
 db/migrate/XXX(一堆数字)_create_cart_items.rb
 
@@ -566,6 +568,33 @@ class CartItemsController < ApplicationController
 +    params.require(:cart_item).permit(:quantity)
 +  end
 end
+```
+
+```
+app/controllers/orders_controller.rb
+
+class OrdersController < ApplicationController
++  before_action :authenticate_user!, only: [:create]
+
++  def create
++    @order = Order.new(order_params)
++    @order.user = current_user
++    @order.total = current_cart.total_price
+
++    if @order.save
++      redirect_to order_path(@order)
++    else
++      render 'carts/checkout'
++    end
++  end
+
++  private
+
++  def order_params
++    params.require(:order).permit(:billing_name, :billing_address, :shipping_name, :shipping_address)
++  end
+end
+
 ```
 
 ```
@@ -719,4 +748,410 @@ class ApplicationController < ActionController::Base
 +    return cart
 +  end
 end
+```
+
+
+#### 结帐页功能
+```
+app/views/carts/index.html.erb
+
+...(略)
+    <div class="checkout clearfix">
+－      <%= link_to("确认结账", "#", method: :post, class: "btn btn-lg btn-danger pull-right") %>
+＋      <%= link_to("确认结账", checkout_carts_path, method: :post, class: "btn btn-lg btn-danger pull-right") %>
+    </div>
+...(略)
+```
+
+```
+config/routes.rb
+
+...(略)
+  resources :carts do
+    collection do
+      delete :clean
++      post :checkout
+    end
+  end
+
++  resources :orders  
+...(略)
+```
+
+`rails g model order`
+
+```
+db/migrate/XXX(一堆数字)_create_orders.rb
+
+class CreateOrders < ActiveRecord::Migration[5.0]
+  def change
+    create_table :orders do |t|
++      t.integer :total, default: 0
++      t.integer :user_id
++      t.string :billing_name
++      t.string :billing_address
++      t.string :shipping_name
++      t.string :shipping_address
+      t.timestamps
+    end
+  end
+end
+```
+
+`rake db:migrate`
+
+```
+app/models/order.rb
+
+class Order < ApplicationRecord
++  belongs_to :user
+
++  validates :billing_name, presence: true
++  validates :billing_address, presence: true
++  validates :shipping_name, presence: true
++  validates :shipping_address, presence: true
+
+end
+```
+
+```
+app/controllers/carts_controller.rb
+
+class CartsController < ApplicationController
+...(略)
++  def checkout
++    @order = Order.new
++  end
+
+    private
+...(略)
+end
+```
+
+```
+app/controllers/orders_controller.rb
+
+class OrdersController < ApplicationController
++  before_action :authenticate_user!, only: [:create]
+
++  def create
++    @order = Order.new(order_params)
++    @order.user = current_user
++    @order.total = current_cart.total_price
+
++    if @order.save
++      redirect_to order_path(@order)
++    else
++      render 'carts/checkout'
++    end
++  end
+
++  private
+
++  def order_params
++    params.require(:order).permit(:billing_name, :billing_address, :shipping_name, :shipping_address)
++  end
+end
+```
+
+```
+app/models/user.rb
+
+class User < ApplicationRecord
++  has_many :orders
+...(略)  
+```
+
+`touch app/views/carts/checkout.html.erb`
+
+```
+app/views/carts/checkout.html.erb
+
+<div class="row">
+   <div class="col-md-12">
+
+    <h2> 购物明细 </h2>
+
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th width="80%">商品明细</th>
+          <th>单价</th>
+          <th>数量</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <% current_cart.cart_items.each do |cart_item| %>
+          <tr>
+            <td>
+              <%= link_to(cart_item.product.title, product_path(cart_item.product)) %>
+            </td>
+            <td>
+              <%= cart_item.product.price %>
+            </td>
+
+            <td>
+              <%= cart_item.quantity %>
+            </td>
+
+          </tr>
+        <% end %>
+
+      </tbody>
+    </table>
+
+    <div class="total clearfix">
+      <span class="pull-right">
+        总计 <%= render_cart_total_price(current_cart) %> CNY
+      </span>
+    </div>
+
+    <hr>
+
+    <h2> 订单资讯 </h2>
+
+    <div class="order-form">
+
+      <%= simple_form_for @order do |f| %>
+
+
+
+          <legend> 订购人</legend>
+          <div class="form-group col-lg-6">
+            <%= f.input :billing_name  %>
+          </div>
+          <div class="form-group col-lg-6">
+            <%= f.input :billing_address  %>
+          </div>
+
+          <legend> 收货人</legend>
+          <div class="form-group col-lg-6">
+           <%= f.input :shipping_name  %>
+          </div>
+          <div class="form-group col-lg-6">
+            <%= f.input :shipping_address  %>
+          </div>
+
+        <div class="checkout">
+          <%= f.submit "生成订单", class: "btn btn-lg btn-danger pull-right",
+                       data: { disable_with: "Submitting..." } %>
+        </div>
+      <% end %>
+
+    </div>
+  </div>
+</div>
+```
+
+#### 购买明细功能
+`rails g model product_list`
+
+```
+db/migrate/XXX(一堆数字)_create_product_lists.rb
+
+class CreateProductLists < ActiveRecord::Migration[5.0]
+  def change
+    create_table :product_lists do |t|
++      t.integer :order_id
++      t.string  :product_name
++      t.integer :product_price
++      t.integer :quantity
+      t.timestamps
+    end
+  end
+end
+```
+
+`rake db:migrate`
+
+```
+app/models/order.rb
+
+class Order < ApplicationRecord
+...(略)
+
++  has_many :product_lists
+end
+```
+
+```
+app/models/product_list.rb
+
+class ProductList < ApplicationRecord
++  belongs_to :order
+end
+```
+
+```
+app/controllers/orders_controller.rb
+
+class OrdersController < ApplicationController
+  before_action :authenticate_user!, only: [:create]
+
+  def create
+    @order = Order.new(order_params)
+    @order.user = current_user
+    @order.total = current_cart.total_price
+
+    if @order.save
+
++      current_cart.cart_items.each do |cart_item|
++        product_list = ProductList.new
++        product_list.order = @order
++        product_list.product_name = cart_item.product.title
++        product_list.product_price = cart_item.product.price
++        product_list.quantity = cart_item.quantity
++        product_list.save
++      end
+
+      redirect_to order_path(@order)
+    else
+      render 'carts/checkout'
+    end
+  end
+
++  def show
++    @order = Order.find(params[:id])
++    @product_lists = @order.product_lists
++  end
+
+  private
+
+  def order_params
+    params.require(:order).permit(:billing_name, :billing_address, :shipping_name, :shipping_address)
+  end
+end
+```
+
+`touch app/views/orders/show.html.erb`
+
+```
+app/views/orders/show.html.erb
+
+<div class="row">
+  <div class="col-md-12">
+
+    <h2> 订单明细 </h2>
+
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th width="80%">商品明细</th>
+          <th>单价</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <% @product_lists.each do |product_list| %>
+          <tr>
+            <td>
+              <%= product_list.product_name %>
+            </td>
+            <td>
+              <%= product_list.product_price %>
+            </td>
+          </tr>
+        <% end %>
+
+      </tbody>
+    </table>
+
+    <div class="total clearfix">
+      <span class="pull-right">
+        总计 <%= @order.total %> CNY
+      </span>
+    </div>
+
+     <hr>
+
+     <h2> 寄送资讯 </h2>
+
+     <table class="table table-striped table-bordered">
+      <tbody>
+        <tr>
+          <td>
+            订购人
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <%= @order.billing_name %> - <%= @order.billing_address %>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            收件人
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <%= @order.shipping_name %> - <%= @order.shipping_address %>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+```
+
+#### 网址无序功能
+`rails g migration add_token_to_order`
+
+```
+db/migrate/XXX(一堆数字)_add_token_to_order.rb
+
+class AddTokenToOrder < ActiveRecord::Migration[5.0]
+  def change
++    add_column :orders, :token, :string
+  end
+end
+```
+
+`rake db:migrate`
+
+```
+app/models/order.rb
+
+class Order < ApplicationRecord
++  before_create :generate_token
+
++  def generate_token
++    self.token = SecureRandom.uuid
++  end
+...(略)
+end
+```
+
+```
+app/controllers/orders_controller.rb
+
+...(略)
+  def create
+    @order = Order.new(order_params)
+    @order.user = current_user
+    @order.total = current_cart.total_price
+
+    if @order.save
+      current_cart.cart_items.each do |cart_item|
+        product_list = ProductList.new
+        product_list.order = @order
+        product_list.product_name = cart_item.product.title
+        product_list.product_price = cart_item.product.price
+        product_list.quantity = cart_item.quantity
+        product_list.save
+      end
+-     redirect_to order_path(@order)
++     redirect_to order_path(@order.token)
+    else
+      render 'carts/checkout'
+    end
+  end
+
+  def show
+-   @order = Order.find(params[:id])
++   @order = Order.find_by_token(params[:id])
+    @product_lists = @order.product_lists
+  end
+...(略)
 ```
