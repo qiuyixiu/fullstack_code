@@ -1155,3 +1155,78 @@ app/controllers/orders_controller.rb
   end
 ...(略)
 ```
+
+
+#### 使用者可以看到过去所有订单
+`rails g controller account::orders`
+
+```
+config/routes.rb
+
+Rails.application.routes.draw do
+...(略)
++ namespace :account do
++   resources :orders
++ end
+end
+```
+
+```
+app/controllers/account/orders_controller.rb
+
+class Account::OrdersController < ApplicationController
++  before_action :authenticate_user!
+
++  def index
++    @orders = current_user.orders.order("id DESC")
++  end
+end
+```
+
+`touch app/views/account/orders/index.html.erb`
+
+```
+app/views/account/orders/index.html.erb
+
+<h2>订单列表 </h2>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>生成时间</th>
+
+    </tr>
+  </thead>
+  <tbody>
+
+    <% @orders.each do |order| %>
+    <tr>
+      <td> <%= link_to(order.id, order_path(order.token)) %> </td>
+      <td> <%= order.created_at.to_s(:long) %> </td>
+    </tr>
+    <% end %>
+
+  </tbody>
+</table>
+```
+
+```
+app/views/common/_navbar.html.erb
+
+...(略)
+            <ul class="dropdown-menu">
+              <% if current_user.admin? %>
+                <li>
+                  <%= link_to("Admin 选单", admin_products_path ) %>
+                </li>
+              <% end %>
++             <li>
++               <%= link_to("个人订单列表", account_orders_path ) %>
++             </li>
+              <li>
+                <%= link_to("登出", destroy_user_session_path, method: :delete ) %>
+              </li>
+            </ul>
+...(略)
+```
